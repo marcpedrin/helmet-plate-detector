@@ -103,6 +103,10 @@ class ObjectTracker:
             self.error = str(exc)
             log.exception("%s: detector failed to load", camera_id)
 
+    def _dev_kwargs(self) -> dict:
+        # WHY: pass ``half`` only when True; ultralytics 8.4 warns that ``half`` is deprecated.
+        return {"device": self.device, **({"half": True} if self.half else {})}
+
     def update(self, packet: FramePacket) -> list[Track]:
         """Run detection + tracking on one frame.
 
@@ -129,9 +133,8 @@ class ObjectTracker:
             classes=list(COCO_CLASSES),
             conf=self.conf,
             imgsz=self.imgsz,
-            device=self.device,
-            half=self.half,
             verbose=False,
+            **self._dev_kwargs(),
         )[0]
         boxes = result.boxes
         if boxes is None or boxes.id is None:

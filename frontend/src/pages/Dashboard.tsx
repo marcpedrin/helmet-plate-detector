@@ -1,102 +1,117 @@
 /**
- * Dashboard skeleton: 2x2 live MJPEG grid + latest violations + stats.
- * Deliberately plain: Harish owns the real UI.
- * @module pages/Dashboard
+ * Main dashboard page: StatsBar + 2-column layout (CameraGrid | AlertFeed) + collapsible ViolationsChart.
+ * Live violations arrive via WebSocket; toasts notify on new events.
+ *
+ * WHY toasts: judges need an audio/visual cue without having to watch the feed.
+ * Max 3 toasts visible to avoid flooding during busy demo periods.
+ *
+ * @module pages/DashboardPage
+ * @example
+ * // Registered in App.tsx at route "/"
  */
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertFeed } from '@/components/violations/AlertFeed'
+import { CameraGrid } from '@/components/cameras/CameraGrid'
+import { StatsBar } from '@/components/stats/StatsBar'
+import { ViolationsChart } from '@/components/stats/ViolationsChart'
+import { Button } from '@/components/ui/button'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
-import { apiUrl, listCameras, listViolations } from '@/services/api'
-import type { CameraOut, ViolationOut } from '@/types/contracts'
-import { formatConfidence, formatPlate, formatTime, formatUptime } from '@/utils/format'
+import { listCameras } from '@/services/api'
+import type { CameraOut } from '@/types/contracts'
 
 /**
- * Home page.
- * @returns The dashboard.
+ * Dashboard: live stats, 2×2 camera grid, alert feed sidebar, collapsible charts.
+ *
+ * @returns The dashboard page element.
  */
-export function Dashboard() {
-  const live = useLiveEvents()
+export function DashboardPage() {
+  const { recent, stats, cameras: liveCams } = useLiveEvents()
   const [cameras, setCameras] = useState<CameraOut[]>([])
-  const [initial, setInitial] = useState<ViolationOut[]>([])
+  const [chartOpen, setChartOpen] = useState(false)
+  const prevTopRef = useRef<string | undefined>(undefined)
+  const toastCountRef = useRef(0)
 
   useEffect(() => {
     const ctrl = new AbortController()
     listCameras(ctrl.signal).then(setCameras).catch(() => {})
-    listViolations({ limit: 20 }, ctrl.signal).then((p) => setInitial(p.items)).catch(() => {})
     return () => ctrl.abort()
   }, [])
 
-  const seen = new Set(live.recent.map((v) => v.id))
-  const violations = [...live.recent, ...initial.filter((v) => !seen.has(v.id))].slice(0, 20)
-  const stats = live.stats
+  // Merge live camera updates into REST-loaded list
+  const mergedCameras = cameras.map((c) => ({ ...c, ...(liveCams[c.camera_id] ?? {}) }))
+
+  // Toast on new violations (max 3 active)
+  useEffect(() => {
+    const latest = recent[0]
+    if (!latest || latest.id === prevTopRef.current) return
+    prevTopRef.current = latest.id
+
+    // WHY max 3: avoid flooding the judge's screen during demo with rapid violations
+    if (toastCountRef.current < 3) {
+      toastCountRef.current++
+      const camName = liveCams[latest.camera_id]?.name ?? latest.camera_id
+      toast.error(`No helmet · ${camName} · #${latest.track_id}`, {
+        description: `Track ${latest.track_id} — ${latest.plate_status === 'PENDING' ? 'plate reading…' : (latest.plate ?? 'no plate')}`,
+        action: {
+          label: 'View',
+          onClick: () => { window.location.href = `/violations/${latest.id}` },
+        },
+        duration: 6000,
+        onDismiss: () => { toastCountRef.current = Math.max(0, toastCountRef.current - 1) },
+        onAutoClose: () => { toastCountRef.current = Math.max(0, toastCountRef.current - 1) },
+      })
+    }
+  }, [recent, liveCams])
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {cameras.map((cam) => {
-          const state = live.cameras[cam.camera_id]?.state ?? cam.state
-          const m = live.metrics[cam.camera_id]
-          return (
-            <Card key={cam.camera_id} className="gap-2 overflow-hidden py-2">
-              <CardHeader className="px-3">
-                <CardTitle className="flex items-center justify-between text-sm">
-                  <Link to={`/cameras/${cam.camera_id}`}>
-                    {cam.camera_id} · {cam.name}
-                  </Link>
-                  <Badge variant={state === 'ONLINE' ? 'secondary' : 'destructive'}>{state}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-3">
-                <img src={apiUrl(cam.stream_url)} alt={`${cam.name} live`} className="aspect-video w-full rounded bg-black" />
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {m ? `${m.processing_fps.toFixed(1)} fps · ${m.riders_in_view} riders` : 'no metrics yet'}
-                </p>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </section>
+    <div className="flex flex-col gap-3">
+      {/* KPI row */}
+      <StatsBar stats={stats} />
 
-      <aside className="space-y-4">
-        <Card className="py-3">
-          <CardContent className="grid grid-cols-2 gap-2 px-3 text-sm">
-            <span>Violations</span>
-            <b>{stats?.total_violations ?? '—'}</b>
-            <span>Plates read</span>
-            <b>{stats?.plates_read ?? '—'}</b>
-            <span>Unreadable</span>
-            <b>{stats?.plates_unreadable ?? '—'}</b>
-            <span>Cameras online</span>
-            <b>{stats ? `${stats.cameras_online}/${stats.cameras_total}` : '—'}</b>
-            <span>Uptime</span>
-            <b>{stats ? formatUptime(stats.uptime_s) : '—'}</b>
-          </CardContent>
-        </Card>
+      {/* Main 2-column layout */}
+      <div className="grid gap-3 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]">
+        {/* Left: cameras */}
+        <div className="min-w-0 space-y-3">
+          <CameraGrid cameras={mergedCameras as CameraOut[]} />
 
-        <Card className="py-3">
-          <CardHeader className="px-3">
-            <CardTitle className="text-sm">Latest violations</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 px-3">
-            {violations.length === 0 && <p className="text-muted-foreground text-sm">Waiting for violations…</p>}
-            {violations.map((v) => (
-              <Link key={v.id} to={`/violations/${v.id}`} className="hover:bg-muted flex items-center gap-2 rounded p-1">
-                <img src={apiUrl(v.evidence.rider_crop_url)} alt="rider" className="h-12 w-12 rounded object-cover" />
-                <div className="text-xs">
-                  <div className="font-medium">
-                    {v.camera_id} · {formatTime(v.timestamp)}
-                  </div>
-                  <div>
-                    plate: <b>{formatPlate(v.plate, v.plate_status)}</b> · helmet conf {formatConfidence(v.helmet_confidence)}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
-      </aside>
+          {/* Collapsible charts */}
+          <div className="rounded-lg border border-border bg-card">
+            <button
+              className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-accent/20 transition-colors rounded-lg"
+              onClick={() => setChartOpen((o) => !o)}
+              aria-expanded={chartOpen}
+              aria-controls="violations-chart"
+            >
+              <span>Violation Trends</span>
+              {chartOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {chartOpen && (
+              <div id="violations-chart" className="px-3 pb-3">
+                <ViolationsChart violations={recent} stats={stats} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: alert feed */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden" style={{ maxHeight: '75vh' }}>
+          <AlertFeed violations={recent} />
+        </div>
+      </div>
+
+      {/* Chart expand button for small screens */}
+      <div className="lg:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs"
+          onClick={() => setChartOpen((o) => !o)}
+        >
+          {chartOpen ? 'Hide' : 'Show'} violation trends
+        </Button>
+      </div>
     </div>
   )
 }

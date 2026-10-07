@@ -1,46 +1,58 @@
 /**
- * Routes + app shell (header with connection/mode status).
+ * Root application component: routes + app shell.
+ *
+ * Uses react-router-dom v7 (Routes/Route, no createBrowserRouter needed here since
+ * BrowserRouter wraps in main.tsx). Each route is wrapped in a PageErrorBoundary
+ * so a render crash in one page never takes down the whole app.
+ *
+ * Routes:
+ *  /                  → DashboardPage
+ *  /violations        → ViolationsPage
+ *  /violations/:id    → ViolationDetailPage
+ *  /cameras/:id       → CameraDetailPage
+ *  *                  → NotFoundPage
+ *
  * @module App
  */
-import { NavLink, Route, Routes } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { useLiveEvents } from '@/hooks/useLiveEvents'
+import { Route, Routes } from 'react-router-dom'
+import { AppShell } from '@/components/layout/AppShell'
+import { PageErrorBoundary } from '@/components/layout/PageErrorBoundary'
 import { CameraDetail } from '@/pages/CameraDetail'
-import { Dashboard } from '@/pages/Dashboard'
+import { DashboardPage } from '@/pages/Dashboard'
 import { NotFound } from '@/pages/NotFound'
 import { ViolationDetail } from '@/pages/ViolationDetail'
 import { Violations } from '@/pages/Violations'
 
 /**
- * Root component: shell + routes `/`, `/violations`, `/violations/:id`, `/cameras/:id`, `*`.
- * @returns The app.
+ * Root component: AppShell wraps all routes; each route has an error boundary.
+ *
+ * @returns The app element.
  */
 export default function App() {
-  const { status, hello } = useLiveEvents()
   return (
-    <div className="bg-background text-foreground min-h-screen">
-      <header className="flex items-center gap-4 border-b px-4 py-2">
-        <span className="font-semibold">Helmet &amp; Plate Detector</span>
-        <nav className="flex gap-3 text-sm">
-          <NavLink to="/" end>
-            Dashboard
-          </NavLink>
-          <NavLink to="/violations">Violations</NavLink>
-        </nav>
-        <div className="ml-auto flex gap-2">
-          {hello?.mode === 'mock' && <Badge variant="destructive">MOCK DATA</Badge>}
-          <Badge variant={status === 'open' ? 'secondary' : 'outline'}>ws: {status}</Badge>
-        </div>
-      </header>
-      <main className="p-4">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/violations" element={<Violations />} />
-          <Route path="/violations/:id" element={<ViolationDetail />} />
-          <Route path="/cameras/:id" element={<CameraDetail />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route
+          path="/"
+          element={<PageErrorBoundary><DashboardPage /></PageErrorBoundary>}
+        />
+        <Route
+          path="/violations"
+          element={<PageErrorBoundary><Violations /></PageErrorBoundary>}
+        />
+        <Route
+          path="/violations/:id"
+          element={<PageErrorBoundary><ViolationDetail /></PageErrorBoundary>}
+        />
+        <Route
+          path="/cameras/:id"
+          element={<PageErrorBoundary><CameraDetail /></PageErrorBoundary>}
+        />
+        <Route
+          path="*"
+          element={<PageErrorBoundary><NotFound /></PageErrorBoundary>}
+        />
+      </Route>
+    </Routes>
   )
 }

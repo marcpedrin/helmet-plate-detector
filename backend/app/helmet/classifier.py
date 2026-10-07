@@ -103,7 +103,8 @@ class YoloHelmetClassifier:
 
         is_pt = self.weights.suffix == ".pt"
         self.model = YOLO(str(self.weights), task="detect")
-        # WHY: exported formats (ONNX for fast CPU inference) can't be moved with .to(); predict(device=) handles them.
+        # WHY: exported formats (ONNX, for faster CPU inference) cannot be moved with .to();
+        # predict(device=...) handles them.
         if is_pt:
             self.model.to(self.device)
         self._class_map: dict[str, HelmetStatus] = {}
@@ -272,7 +273,7 @@ class YoloHelmetClassifier:
             )
             return [HelmetResult(HelmetStatus.UNKNOWN, 0.0, tuple()) for _ in riders]
 
-        for (idx, rider, crop_bbox, _), prediction in zip(scheduled, predictions):
+        for (idx, rider, crop_bbox, _), prediction in zip(scheduled, predictions, strict=True):
             if not prediction or getattr(prediction, "boxes", None) is None:
                 results[idx] = HelmetResult(HelmetStatus.UNKNOWN, 0.0, tuple())
                 continue
@@ -292,7 +293,7 @@ class YoloHelmetClassifier:
             xyxy = boxes.xyxy.cpu().numpy()
             confs = boxes.conf.cpu().numpy()
             cls_ids = boxes.cls.cpu().numpy()
-            for box, conf, cls_id in zip(xyxy, confs, cls_ids):
+            for box, conf, cls_id in zip(xyxy, confs, cls_ids, strict=True):
                 status = self._class_map.get(str(int(cls_id)))
                 if status is None:
                     continue

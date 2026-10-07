@@ -1,0 +1,45 @@
+# Later rules win. TODO: replace @prajwal-gh, @malik-gh, @harish-gh with real GitHub handles.
+*                                   @marcpedrin
+
+# Marc — camera + storage (Codex stream)
+/backend/app/camera/                @marcpedrin
+/backend/app/storage/               @marcpedrin
+/backend/app/api/cameras.py         @marcpedrin
+/backend/config/cameras.yaml        @marcpedrin
+/backend/tests/camera/              @marcpedrin
+/backend/tests/storage/             @marcpedrin
+/docs/modules/camera.md             @marcpedrin
+/docs/modules/storage.md            @marcpedrin
+
+# Prajwal — helmet + footage
+/backend/app/helmet/                @prajwal-gh @marcpedrin
+/backend/tests/helmet/              @prajwal-gh @marcpedrin
+/backend/tests/fixtures/helmet/     @prajwal-gh @marcpedrin
+/backend/models/helmet/             @prajwal-gh @marcpedrin
+/scripts/eval_helmet.py             @prajwal-gh @marcpedrin
+/scripts/prepare_videos.py          @prajwal-gh @marcpedrin
+/videos/                            @prajwal-gh @marcpedrin
+/docs/modules/helmet.md             @prajwal-gh @marcpedrin
+/docs/modules/footage.md            @prajwal-gh @marcpedrin
+/docs/images/helmet/                @prajwal-gh @marcpedrin
+
+# Malik — plates + OCR
+/backend/app/plates/                @malik-gh @marcpedrin
+/backend/tests/plates/              @malik-gh @marcpedrin
+/backend/tests/fixtures/plates/     @malik-gh @marcpedrin
+/backend/models/plates/             @malik-gh @marcpedrin
+/scripts/eval_plates.py             @malik-gh @marcpedrin
+/docs/modules/plates.md             @malik-gh @marcpedrin
+/docs/images/plates/                @malik-gh @marcpedrin
+
+# Harish — frontend (contract file stays Marc's)
+/frontend/                          @harish-gh @marcpedrin
+/docs/modules/frontend.md           @harish-gh @marcpedrin
+/docs/images/frontend/              @harish-gh @marcpedrin
+/frontend/src/types/contracts.ts    @marcpedrin
+
+# Contract + generated map: Marc only
+/backend/app/core/                  @marcpedrin
+/docs/CONTRACTS.md                  @marcpedrin
+/docs/MODELS.md                     @marcpedrin
+/graphify-out/                      @marcpedrin

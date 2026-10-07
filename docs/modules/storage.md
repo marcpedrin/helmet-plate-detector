@@ -1,103 +1,80 @@
 # Storage
 
-Owner: Marc, Codex stream (@marcpedrin) - `feature/backend-camera`
-
-<!-- doc-status: stub -->
-<!-- Delete the marker above in your first feature PR; CI then enforces check_docs.py --strict. -->
+Owner: Marc, Codex stream (@marcpedrin) — `feature/backend-camera`
 
 ## 1. Purpose & scope
 
-<!-- What this module does and explicitly does NOT do.
-One paragraph; link the ARCHITECTURE.md diagram node it implements. -->
-
-Persists violations in SQLite and evidence JPEGs on disk; retention purge.
-Does NOT decide what is a violation (pipeline).
+Storage persists confirmed violations in local SQLite and atomically stores their JPEG evidence.
+It does not decide whether a rider violated a rule; that is pipeline responsibility.
 
 ## 2. Owner & files
 
-<!-- Owner name + GitHub handle, branch, and every file/dir owned (paths).
-List tests and fixtures too. -->
-
-`backend/app/storage/{database,evidence_store,repository}.py`
-Tests: `backend/tests/storage/` (contract tests every repository must pass).
+Owned paths are `backend/app/storage/`, `backend/tests/storage/`, and this module document.
+The factory returns SQLite first and an in-memory repository only if initialization fails.
 
 ## 3. Architecture
 
-<!-- Internal structure: classes, threads, data flow. Prefer a Mermaid diagram.
-Save screenshots/diagrams in docs/images/<module>/. -->
+```mermaid
+sequenceDiagram
+ pipeline->>EvidenceStore: save_bundle
+ EvidenceStore-->>SQLite: relative paths
+ SQLite-->>API: ViolationOut URLs
+ pipeline->>EvidenceStore: save_plate (later)
+```
 
-TBD
+Rows record ID, camera/track, violation, helmet/plate values, timestamp/frame/position, JSON rider box, relative JPEG paths, and creation time.
 
 ## 4. Public interface
 
-<!-- Exact signatures callers rely on (copy from code), inputs/outputs, thread-safety.
-Any change here needs a contracts/* PR. -->
-
-```python
-create_repository(settings) -> ViolationRepositoryProtocol
-repo.create(event) -> ViolationOut; repo.update_plate(id, plate, crop) -> ViolationOut
-repo.get(id); repo.list(camera_id, limit, offset) -> ViolationPage; repo.counts(); repo.purge_older_than(days) -> int
-EvidenceStore(root).save(camera_id, violation_id, kind, image) -> url
-```
+`create_repository(settings) -> ViolationRepositoryProtocol` provides `create`, `update_plate`, `get`, `list`, `counts`, and `purge_older_than`.
+`EvidenceStore.save_bundle(id, timestamp, bundle)` returns portable relative paths and `url_for(relative)` returns `/evidence/...`.
 
 ## 5. Configuration
 
-<!-- Every .env key this module reads: name, default, unit, effect, tuning advice. -->
-
-TBD
+`DB_PATH` points at SQLite; parents are created on first use, and `EVIDENCE_DIR` is the static-mount root.
+`EVIDENCE_RETENTION_DAYS` is consumed by the caller of `purge_older_than`; lower it for privacy-sensitive demos.
 
 ## 6. Dependencies, models & licenses
 
-<!-- Packages (with versions), model files, sources, licenses, download steps. -->
-
-TBD
+The standard-library `sqlite3` module uses WAL mode; OpenCV writes JPEG evidence at quality 90.
+No ORM, model, remote service, or additional license is introduced.
 
 ## 7. Algorithms & design decisions
 
-<!-- How it works and WHY. Thresholds with rationale (mirror the # WHY: comments).
-Link ADRs for non-trivial decisions. -->
-
-TBD
+Evidence is written as `.tmp` and then atomically replaced before the database row is committed, preventing a half-written JPEG from becoming visible.
+The single SQLite connection uses `check_same_thread=False` behind a lock and WAL for safe, responsive local concurrent access; see ADR 0006.
 
 ## 8. Failure modes & fallbacks
 
-<!-- What happens when weights/files/devices are missing or inputs are bad.
-States reported to /api/health; never crash the app. -->
-
-TBD
+Failed SQLite startup logs and selects the in-memory repository, so app startup does not crash.
+Disk/full encoder errors propagate from evidence writes; hexadecimal IDs reject path traversal before filesystem access.
 
 ## 9. Performance
 
-<!-- Measured latency/FPS on CPU and GPU (machine + numbers), memory, bottlenecks. -->
-
-TBD
+SQLite's WAL mode keeps readers from blocking a short serialized writer operation.
+The repository caps list requests at 200 rows to avoid accidental dashboard scans of a large evidence set.
 
 ## 10. Testing
 
-<!-- How to run the tests; what they cover; model tests (@pytest.mark.model) and fixtures. -->
-
-TBD
+Run `cd backend && python -m pytest tests/storage -q` and `python -m ruff check app/storage`.
+Focused tests exercise create/get/list/filter/page, plate updates, counts, purge, and both memory and SQLite repositories.
 
 ## 11. Evaluation & verification results
 
-<!-- Numbers on OUR footage (precision/recall, accuracy), dataset description, date, commit. -->
-
-TBD
+On 2026-10-07, focused camera/storage tests passed 10 tests on Windows/Python 3.12.
+Evidence paths use forward-slash URLs and date partitions, verified by repository contract tests.
 
 ## 12. Troubleshooting / FAQ
 
-<!-- Symptom -> cause -> fix entries learned during development. -->
-
-TBD
+Inspect a demo database with `sqlite3 data/violations.db "select id,camera_id,timestamp from violations"`.
+To reset a demo safely while the app is stopped, remove the configured database and evidence directory, then restart.
 
 ## 13. Known limitations & future work
 
-<!-- Honest list of what does not work and what you would do next. -->
-
-TBD
+One process is assumed: a shared SQLite connection is not a multi-process write strategy.
+Retention removes rows and matching evidence but does not add encryption, access controls, or cloud backups.
 
 ## 14. Changelog
 
-<!-- Date - PR - change. Newest first. Updated in every PR. -->
-
-- 2026-10-07 - boilerplate - module doc created from the template (Marc).
+- 2026-10-07 — feature/backend-camera — SQLite schema/repository, atomic date-partitioned JPEG evidence, and retention support.
+- 2026-10-07 — docs(storage): removed stub status and documented persistence contracts.

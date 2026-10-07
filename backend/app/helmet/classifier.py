@@ -101,15 +101,18 @@ class YoloHelmetClassifier:
         self.device = resolved_device
         self._half = bool("cuda" in self.device and torch.cuda.is_available())
 
-        self.model = YOLO(str(self.weights))
-        self.model.to(self.device)
+        is_pt = self.weights.suffix == ".pt"
+        self.model = YOLO(str(self.weights), task="detect")
+        # WHY: exported formats (ONNX for fast CPU inference) can't be moved with .to(); predict(device=) handles them.
+        if is_pt:
+            self.model.to(self.device)
         self._class_map: dict[str, HelmetStatus] = {}
         names = getattr(self.model, "names", None) or {}
         for class_id, label in names.items():
             key = _norm_label(label)
             if key in {"withhelmet", "helmet"}:
                 self._class_map[str(class_id)] = HelmetStatus.HELMET
-            elif key in {"withouthelmet", "nohelmet", "withouthelmet", "nohelmet"}:
+            elif key in {"withouthelmet", "nohelmet"}:
                 self._class_map[str(class_id)] = HelmetStatus.NO_HELMET
 
         if not self._class_map:

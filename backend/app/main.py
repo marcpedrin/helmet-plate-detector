@@ -78,9 +78,19 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
+        # WHY: the dashboard can be hosted on Vercel and talk to this backend on the same laptop.
+        allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def private_network_access(request, call_next):
+        """Allow Chrome Private Network Access from a public (Vercel) page to this local server."""
+        response = await call_next(request)
+        if request.headers.get("access-control-request-private-network") == "true":
+            response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
     for module in (cameras, violations, stats, health, ws):
         app.include_router(module.router)
 

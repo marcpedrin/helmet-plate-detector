@@ -9,11 +9,15 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response
+from starlette.types import Scope
 
 from app import __version__
 from app.api import cameras, health, stats, violations, ws
@@ -21,11 +25,33 @@ from app.config import REPO_ROOT, Settings, resolve
 from app.container import Container
 
 
-def create_app(settings: Settings | None = None, **container_kwargs: Any) -> FastAPI:
+class SPAStaticFiles(StaticFiles):
+    """Static files with single-page-app fallback: unknown extension-less paths serve ``index.html``.
+
+    Deep links such as ``/violations/abc`` are client-side routes; without the fallback a browser refresh
+    would 404. Missing assets (paths with a file extension) and ``api/``, ``ws/``, ``evidence/`` still 404.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        """Serve ``path``, falling back to ``index.html`` for client-side routes."""
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            norm = path.replace("\\", "/")  # Starlette passes OS-normalised paths (backslashes on Windows)
+            last = norm.rsplit("/", 1)[-1]
+            if exc.status_code != 404 or "." in last or norm.startswith(("api/", "ws/", "evidence/")):
+                raise
+            return await super().get_response("index.html", scope)
+
+
+def create_app(
+    settings: Settings | None = None, *, frontend_dist: Path | None = None, **container_kwargs: Any
+) -> FastAPI:
     """Build the FastAPI app.
 
     Args:
         settings: Settings to use (default: from env / ``.env``).
+        frontend_dist: Built frontend to serve at ``/`` (default ``frontend/dist`` if it exists).
         **container_kwargs: Extra keyword arguments for :class:`Container` (tests use
             them to speed up the mock runner).
 
@@ -62,9 +88,9 @@ def create_app(settings: Settings | None = None, **container_kwargs: Any) -> Fas
     evidence_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/evidence", StaticFiles(directory=evidence_dir), name="evidence")
 
-    dist = REPO_ROOT / "frontend" / "dist"
+    dist = frontend_dist or REPO_ROOT / "frontend" / "dist"
     if dist.is_dir():  # production-style single-port serving; mounted last so API routes win
-        app.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
+        app.mount("/", SPAStaticFiles(directory=dist, html=True), name="frontend")
     return app
 
 

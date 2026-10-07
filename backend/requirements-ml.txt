@@ -1,0 +1,12 @@
+# Live mode: core + ML packages.
+#
+# GPU users: install CUDA-enabled torch FIRST, then this file:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r requirements-ml.txt
+# and optionally swap onnxruntime -> onnxruntime-gpu for the plate detector / OCR.
+-r requirements-core.txt
+ultralytics>=8.4,<9
+huggingface_hub>=0.24
+open-image-models>=0.6,<0.7
+rapidocr>=3.9,<4
+onnxruntime>=1.20

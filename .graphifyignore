@@ -1,0 +1,15 @@
+# Inputs Graphify must not index (generated, vendored, binary or private data)
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/src/components/ui/
+backend/.venv/
+.venv/
+evidence/
+data/
+videos/
+backend/models/
+graphify-out/
+LICENSE
+*.lock
+package-lock.json

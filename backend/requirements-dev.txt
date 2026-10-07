@@ -1,0 +1,4 @@
+# Test + lint tooling (CI installs core + dev only).
+pytest>=8
+httpx>=0.27
+ruff>=0.6

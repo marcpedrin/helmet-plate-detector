@@ -1,0 +1,27 @@
+# Virtual cameras. Owner: Marc (camera stream).
+# A missing source file falls back to a synthetic test pattern, so the app always starts.
+cameras:
+  - camera_id: CAM_01
+    name: MG Road Junction
+    location: MG Road
+    source: videos/camera_01.mp4
+    loop: true
+    target_fps: 15
+  - camera_id: CAM_02
+    name: Ring Road Signal
+    location: Outer Ring Road
+    source: videos/camera_02.mp4
+    loop: true
+    target_fps: 15
+  - camera_id: CAM_03
+    name: Market Street
+    location: Market Street
+    source: videos/camera_03.mp4
+    loop: true
+    target_fps: 15
+  - camera_id: CAM_04
+    name: College Gate
+    location: College Road
+    source: videos/camera_04.mp4
+    loop: true
+    target_fps: 15

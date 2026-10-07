@@ -1,0 +1,35 @@
+[project]
+name = "helmet-plate-detector"
+version = "0.1.0"
+description = "Local real-time helmet-violation and number-plate detection (hackathon prototype)"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "D"]
+# UP042: the contract (core/types.py) deliberately uses `class X(str, Enum)` as agreed in the spec.
+ignore = ["UP042"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"scripts/**" = ["D"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--import-mode=importlib"
+markers = [
+    "model: needs downloaded weights / ML packages (skipped in CI)",
+    "slow: takes more than a few seconds",
+]

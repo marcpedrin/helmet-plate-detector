@@ -1,0 +1,54 @@
+# ---- secrets / local config
+.env
+.env.local
+frontend/.env
+
+# ---- Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# ---- Node / frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+.vite/
+
+# ---- model weights (download with scripts/download_models.py)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.safetensors
+
+# ---- videos (see videos/README.md)
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# ---- runtime data (keep the folders)
+evidence/*
+!evidence/.gitkeep
+data/*
+!data/.gitkeep
+
+# ---- Graphify: only the three published outputs are committed (by Marc, on main)
+graphify-out/*
+!graphify-out/graph.html
+!graphify-out/graph.json
+!graphify-out/GRAPH_REPORT.md
+
+# ---- OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log

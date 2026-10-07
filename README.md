@@ -81,7 +81,7 @@ fake violations every 8-15 s per camera, fake plates 2 s later. Everything is st
 | `DEDUP_IOU` / `DEDUP_WINDOW_S` | `0.3` / `5.0` | Duplicate suppression |
 | `STREAM_FPS` / `STREAM_WIDTH` / `STREAM_JPEG_QUALITY` | `15` / `960` / `70` | MJPEG output |
 
-Frontend: `frontend/.env` → `VITE_API_BASE=http://localhost:8000` (or leave empty to use the Vite dev proxy).
+Frontend: `frontend/.env` → `VITE_API_BASE=http://localhost:8000`.
 
 ## Team & ownership
 

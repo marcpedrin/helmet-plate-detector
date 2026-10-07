@@ -30,7 +30,7 @@ from app.core.types import (
     PlateStatus,
     ViolationEvent,
 )
-from app.pipeline.overlay import OverlayState
+from app.pipeline.overlay import OverlayRider, OverlayState
 
 log = logging.getLogger(__name__)
 
@@ -72,17 +72,19 @@ class MockRunner:
         interval_s: tuple[float, float] = (8.0, 15.0),
         plate_delay_s: float = 2.0,
         seed: int | None = None,
+        overlay: OverlayState | None = None,
     ) -> None:
         """Create the runner (no thread yet).
 
         Args:
-            cameras: Source of frames and overlay registration.
+            cameras: Source of frames.
             repository: Where fake violations are stored.
             publisher: Event hub for WS messages.
             stats_fn: Returns the current ``StatsOut`` (provided by the container).
             interval_s: Min/max seconds between fake violations per camera.
             plate_delay_s: Delay between ``violation_created`` and ``violation_updated``.
             seed: Optional RNG seed for deterministic tests.
+            overlay: Shared overlay state (registered with the camera manager by the container).
         """
         self.cameras = cameras
         self.repository = repository
@@ -90,7 +92,7 @@ class MockRunner:
         self.stats_fn = stats_fn
         self.interval_s = interval_s
         self.plate_delay_s = plate_delay_s
-        self.overlay = OverlayState()
+        self.overlay = overlay or OverlayState()
         self._rng = random.Random(seed)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -103,8 +105,7 @@ class MockRunner:
 
     # ----------------------------------------------------------------- lifecycle
     def start(self) -> None:
-        """Register the overlay and start the simulation thread."""
-        self.cameras.set_overlay(self.overlay)
+        """Start the simulation thread."""
         now = time.monotonic()
         for cid in self.cameras.camera_ids():
             self._sims[cid] = _CameraSim(next_violation_at=now + self._rng.uniform(*self.interval_s))
@@ -173,7 +174,11 @@ class MockRunner:
             )
         sim.tracks = tracks
         sim.fps = round(self._rng.uniform(4.5, 5.5), 2)
-        self.overlay.set(cid, tracks)
+        self.overlay.update(
+            cid,
+            [OverlayRider(t.track_id, tuple(t.bbox), t.helmet, 0.8) for t in tracks],  # type: ignore[arg-type]
+            sim.fps,
+        )
         with self._lock:
             self._metrics[cid] = PipelineMetrics(cid, sim.fps, len(tracks), len(tracks) * 2)
         msg = CameraMetricsMsg(

@@ -1,62 +1,87 @@
-"""Writes evidence JPEGs to ``EVIDENCE_DIR`` and maps them to ``/evidence/...`` URLs.
-
-Owner: Marc (camera/storage stream). ``save`` and ``delete`` work minimally; the storage
-stream adds atomic writes and the retention purge.
-"""
+"""Atomic JPEG evidence storage below date-partitioned directories."""
 
 from __future__ import annotations
 
+import os
+import re
 import shutil
+import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-EvidenceKind = str
-"""One of ``"full_frame"``, ``"rider_crop"``, ``"plate_crop"``."""
+_SAFE_ID = re.compile(r"^[0-9a-fA-F]+$")
 
 
 class EvidenceStore:
-    """Stores evidence images at ``<root>/<camera_id>/<violation_id>/<kind>.jpg``.
-
-    Thread-safety: safe for concurrent calls on *different* violations.
-    """
+    """Store images at ``YYYY-MM-DD/<hex-id>/{full,rider,plate}.jpg``."""
 
     def __init__(self, root: Path, url_prefix: str = "/evidence", jpeg_quality: int = 90) -> None:
-        """Create the store; ``root`` is created on first save.
+        """Create the store.
 
         Args:
-            root: Absolute evidence directory (``EVIDENCE_DIR``), mounted at ``url_prefix``.
-            url_prefix: URL path where FastAPI serves ``root``.
-            jpeg_quality: JPEG quality for saved evidence.
+            root: Directory mounted by FastAPI under ``url_prefix``.
+            url_prefix: Browser URL prefix for evidence.
+            jpeg_quality: JPEG encoder quality.
         """
-        self.root = Path(root)
-        self.url_prefix = url_prefix.rstrip("/")
-        self.jpeg_quality = jpeg_quality
+        self.root, self.url_prefix, self.jpeg_quality = Path(root), url_prefix.rstrip("/"), jpeg_quality
 
-    def path_for(self, camera_id: str, violation_id: str, kind: EvidenceKind) -> Path:
-        """Return the absolute file path for one evidence image (does not create it)."""
-        return self.root / camera_id / violation_id / f"{kind}.jpg"
+    def _relative_dir(self, violation_id: str, timestamp: float) -> Path:
+        if not _SAFE_ID.fullmatch(violation_id):
+            raise ValueError("violation_id must be hexadecimal")
+        return Path(datetime.fromtimestamp(timestamp, UTC).strftime("%Y-%m-%d")) / violation_id
 
-    def url_for(self, camera_id: str, violation_id: str, kind: EvidenceKind) -> str:
-        """Return the public URL for one evidence image."""
-        return f"{self.url_prefix}/{camera_id}/{violation_id}/{kind}.jpg"
-
-    def save(self, camera_id: str, violation_id: str, kind: EvidenceKind, image: np.ndarray) -> str:
-        """Encode ``image`` as JPEG, write it, and return its public URL.
-
-        Raises:
-            OSError: If the file cannot be written.
-            ValueError: If the image cannot be encoded (e.g. empty crop).
-        """
-        path = self.path_for(camera_id, violation_id, kind)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        ok, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
+    def _write(self, relative: Path, image: np.ndarray) -> str:
+        if image.size == 0:
+            raise ValueError("cannot write empty evidence image")
+        ok, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
         if not ok:
-            raise ValueError(f"cannot encode evidence image {kind} for {violation_id}")
-        path.write_bytes(buf.tobytes())
-        return self.url_for(camera_id, violation_id, kind)
+            raise ValueError("cannot JPEG encode evidence image")
+        destination = self.root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination.with_suffix(destination.suffix + ".tmp")
+        temporary.write_bytes(encoded.tobytes())
+        os.replace(temporary, destination)
+        return relative.as_posix()
 
-    def delete(self, camera_id: str, violation_id: str) -> None:
-        """Delete all evidence of one violation (missing files are ignored)."""
-        shutil.rmtree(self.root / camera_id / violation_id, ignore_errors=True)
+    def save_bundle(self, violation_id: str, timestamp: float, bundle: object) -> dict[str, str]:
+        """Write full/rider/optional plate images and return relative paths."""
+        directory = self._relative_dir(violation_id, timestamp)
+        full = self._write(directory / "full.jpg", bundle.full_frame)  # type: ignore[attr-defined]
+        rider = self._write(directory / "rider.jpg", bundle.rider_crop)  # type: ignore[attr-defined]
+        paths = {"full": full, "rider": rider}
+        crop = bundle.plate_crop  # type: ignore[attr-defined]
+        if crop is not None and crop.size:
+            paths["plate"] = self._write(directory / "plate.jpg", crop)
+        return paths
+
+    def save_plate(self, violation_id: str, timestamp: float, crop: np.ndarray | None) -> str | None:
+        """Write an optional plate crop and return its relative path."""
+        if crop is None or not crop.size:
+            return None
+        return self._write(self._relative_dir(violation_id, timestamp) / "plate.jpg", crop)
+
+    def url_for(self, relative: str) -> str:
+        """Map a relative storage path to a browser URL using forward slashes."""
+        return f"{self.url_prefix}/{relative.replace('\\', '/')}"
+
+    def delete(self, _camera_id: str, violation_id: str) -> None:
+        """Delete every date-partitioned directory matching a violation ID."""
+        if not _SAFE_ID.fullmatch(violation_id):
+            raise ValueError("violation_id must be hexadecimal")
+        for child in self.root.glob(f"*/{violation_id}"):
+            shutil.rmtree(child, ignore_errors=True)
+
+    def delete_dirs_older_than(self, days: int) -> int:
+        """Remove whole date directories older than ``days`` and return their count."""
+        cutoff = time.time() - days * 86400
+        deleted = 0
+        if not self.root.exists():
+            return 0
+        for child in self.root.iterdir():
+            if child.is_dir() and child.stat().st_mtime < cutoff:
+                shutil.rmtree(child, ignore_errors=True)
+                deleted += 1
+        return deleted

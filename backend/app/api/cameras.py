@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app.api import get_container
@@ -40,15 +40,17 @@ def get_camera(camera_id: str, container: ContainerDep) -> CameraOut:
 
 
 @router.get("/{camera_id}/stream.mjpg")
-def stream(camera_id: str, container: ContainerDep) -> StreamingResponse:
+def stream(camera_id: str, request: Request, container: ContainerDep) -> StreamingResponse:
     """Stream the camera as MJPEG (``multipart/x-mixed-replace``) with the overlay drawn."""
     _require(container, camera_id)
     s = container.settings
-    gen = mjpeg_generator(container.cameras, camera_id, s.stream_fps, s.stream_width, s.stream_jpeg_quality)
+    gen = mjpeg_generator(
+        container.cameras, camera_id, s.stream_fps, s.stream_width, s.stream_jpeg_quality, request
+    )
     return StreamingResponse(
         gen,
         media_type=f"multipart/x-mixed-replace; boundary={BOUNDARY}",
-        headers={"Cache-Control": "no-store"},
+        headers={"Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no"},
     )
 
 
@@ -58,7 +60,7 @@ async def snapshot(camera_id: str, container: ContainerDep) -> Response:
     _require(container, camera_id)
     image = container.cameras.rendered_frame(camera_id)  # type: ignore[attr-defined]
     if image is None:
-        raise HTTPException(status_code=503, detail="no frame yet")
+        raise HTTPException(status_code=503, detail="camera offline")
     s = container.settings
     jpg = await asyncio.to_thread(encode_jpeg, image, s.stream_width, s.stream_jpeg_quality)
     return Response(content=jpg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})

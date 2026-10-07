@@ -7,10 +7,13 @@ Until ``SqliteViolationRepository`` lands, :func:`create_repository` returns the
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from app.config import resolve
 from app.core.interfaces import ViolationRepositoryProtocol
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.config import Settings
@@ -30,6 +33,11 @@ def create_repository(settings: Settings) -> ViolationRepositoryProtocol:
         A repository implementing ``ViolationRepositoryProtocol``.
     """
     from app.storage.evidence_store import EvidenceStore
-    from app.storage.repository import InMemoryRepository
+    from app.storage.repository import InMemoryRepository, SqliteViolationRepository
 
-    return InMemoryRepository(EvidenceStore(resolve(settings.evidence_dir)))
+    evidence = EvidenceStore(resolve(settings.evidence_dir))
+    try:
+        return SqliteViolationRepository(resolve(settings.db_path), evidence)
+    except Exception:
+        log.exception("SQLite repository initialization failed; using in-memory fallback")
+        return InMemoryRepository(evidence)

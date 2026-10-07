@@ -1,6 +1,6 @@
 # Plates & OCR
 
-Owner: Malik (@malik-gh) - `feature/plate-ocr`
+Owner: Malik (@malikrehanmulla1048) - `feature/plate-ocr`
 
 <!-- doc-status: stub -->
 <!-- Delete the marker above in your first feature PR; CI then enforces check_docs.py --strict. -->

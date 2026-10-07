@@ -89,9 +89,9 @@ Frontend: `frontend/.env` → `VITE_API_BASE=http://localhost:8000` (or leave em
 |---|---|---|
 | Marc `@marcpedrin` | core, pipeline, realtime/API, integration, CI, docs | `feature/pipeline` |
 | Marc (Codex stream) | camera + storage | `feature/backend-camera` |
-| Prajwal `@prajwal-gh` (**TODO** handle) | helmet model + demo footage | `feature/helmet-detection` |
-| Malik `@malik-gh` (**TODO** handle) | plates + OCR | `feature/plate-ocr` |
-| Harish `@harish-gh` (**TODO** handle) | frontend | `feature/frontend-dashboard` |
+| Prajwal `@prajwaltotad` | helmet model + demo footage | `feature/helmet-detection` |
+| Malik `@malikrehanmulla1048` | plates + OCR | `feature/plate-ocr` |
+| Harish `@JimMilton1900` | frontend | `feature/frontend-dashboard` |
 
 Details: [docs/OWNERSHIP.md](docs/OWNERSHIP.md).
 

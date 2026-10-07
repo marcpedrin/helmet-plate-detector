@@ -1,6 +1,6 @@
 # Frontend
 
-Owner: Harish (@harish-gh) - `feature/frontend-dashboard`
+Owner: Harish (@JimMilton1900) - `feature/frontend-dashboard`
 
 <!-- doc-status: stub -->
 <!-- Delete the marker above in your first feature PR; CI then enforces check_docs.py --strict. -->

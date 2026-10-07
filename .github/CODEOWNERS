@@ -1,4 +1,4 @@
-# Later rules win. TODO: replace @prajwal-gh, @malik-gh, @harish-gh with real GitHub handles.
+# Later rules win.
 *                                   @marcpedrin
 
 # Marc — camera + storage (Codex stream)
@@ -12,30 +12,30 @@
 /docs/modules/storage.md            @marcpedrin
 
 # Prajwal — helmet + footage
-/backend/app/helmet/                @prajwal-gh @marcpedrin
-/backend/tests/helmet/              @prajwal-gh @marcpedrin
-/backend/tests/fixtures/helmet/     @prajwal-gh @marcpedrin
-/backend/models/helmet/             @prajwal-gh @marcpedrin
-/scripts/eval_helmet.py             @prajwal-gh @marcpedrin
-/scripts/prepare_videos.py          @prajwal-gh @marcpedrin
-/videos/                            @prajwal-gh @marcpedrin
-/docs/modules/helmet.md             @prajwal-gh @marcpedrin
-/docs/modules/footage.md            @prajwal-gh @marcpedrin
-/docs/images/helmet/                @prajwal-gh @marcpedrin
+/backend/app/helmet/                @prajwaltotad @marcpedrin
+/backend/tests/helmet/              @prajwaltotad @marcpedrin
+/backend/tests/fixtures/helmet/     @prajwaltotad @marcpedrin
+/backend/models/helmet/             @prajwaltotad @marcpedrin
+/scripts/eval_helmet.py             @prajwaltotad @marcpedrin
+/scripts/prepare_videos.py          @prajwaltotad @marcpedrin
+/videos/                            @prajwaltotad @marcpedrin
+/docs/modules/helmet.md             @prajwaltotad @marcpedrin
+/docs/modules/footage.md            @prajwaltotad @marcpedrin
+/docs/images/helmet/                @prajwaltotad @marcpedrin
 
 # Malik — plates + OCR
-/backend/app/plates/                @malik-gh @marcpedrin
-/backend/tests/plates/              @malik-gh @marcpedrin
-/backend/tests/fixtures/plates/     @malik-gh @marcpedrin
-/backend/models/plates/             @malik-gh @marcpedrin
-/scripts/eval_plates.py             @malik-gh @marcpedrin
-/docs/modules/plates.md             @malik-gh @marcpedrin
-/docs/images/plates/                @malik-gh @marcpedrin
+/backend/app/plates/                @malikrehanmulla1048 @marcpedrin
+/backend/tests/plates/              @malikrehanmulla1048 @marcpedrin
+/backend/tests/fixtures/plates/     @malikrehanmulla1048 @marcpedrin
+/backend/models/plates/             @malikrehanmulla1048 @marcpedrin
+/scripts/eval_plates.py             @malikrehanmulla1048 @marcpedrin
+/docs/modules/plates.md             @malikrehanmulla1048 @marcpedrin
+/docs/images/plates/                @malikrehanmulla1048 @marcpedrin
 
 # Harish — frontend (contract file stays Marc's)
-/frontend/                          @harish-gh @marcpedrin
-/docs/modules/frontend.md           @harish-gh @marcpedrin
-/docs/images/frontend/              @harish-gh @marcpedrin
+/frontend/                          @JimMilton1900 @marcpedrin
+/docs/modules/frontend.md           @JimMilton1900 @marcpedrin
+/docs/images/frontend/              @JimMilton1900 @marcpedrin
 /frontend/src/types/contracts.ts    @marcpedrin
 
 # Contract + generated map: Marc only

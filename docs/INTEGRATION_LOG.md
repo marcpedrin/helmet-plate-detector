@@ -6,3 +6,4 @@ integration and every threshold you tuned, so the demo configuration is reproduc
 | Date | PR | Merged by | Issues found during integration | Tuning (key: old → new, why) |
 |---|---|---|---|---|
 | 2026-10-07 | boilerplate (initial push) | Marc | — | — |
+| 2026-10-07 | #2 feature/pipeline (draft, not merged) | — | live mode verified on 4 synthetic cameras; CPU perf below target (~2 FPS/camera at 416 px) | none yet: no demo clips |

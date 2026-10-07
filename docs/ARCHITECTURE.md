@@ -116,27 +116,32 @@ sequenceDiagram
     Hub-->>UI: violation_updated (READ / UNREADABLE / NOT_DETECTED)
 ```
 
-## 5. Violation lifecycle
+## 5. Violation lifecycle (as built)
 
 ```mermaid
 stateDiagram-v2
     [*] --> TRACKING: new rider track
-    TRACKING --> SUSPECTED: ≥3 NO_HELMET observations<br/>(plate collection starts)
-    SUSPECTED --> CONFIRMED: ≥6 of last 10 NO_HELMET,<br/>mean conf ≥ 0.5, ≤2 HELMET
-    TRACKING --> DROPPED: track lost > 2 s
-    SUSPECTED --> DROPPED: track lost > 2 s
-    CONFIRMED --> SUPPRESSED: duplicate (same camera,<br/>IoU ≥ 0.3 within 5 s,<br/>or same loop position ±1.5 s)
-    CONFIRMED --> PLATE_PENDING: violation_created
-    PLATE_PENDING --> FINALIZED: plate READ / UNREADABLE / NOT_DETECTED<br/>(or PLATE_WINDOW_S elapsed)
-    FINALIZED --> [*]
-    DROPPED --> [*]
-    SUPPRESSED --> [*]
+    TRACKING --> SUSPECTED: ≥ ceil(MIN_HITS/2) = 3 NO_HELMET looks<br/>(plate collection starts)
+    SUSPECTED --> CONFIRMED: ≥ 6 of last 10 NO_HELMET, mean conf ≥ 0.5,<br/>≤ 2 HELMET, age ≥ 5 looks → violation_created
+    SUSPECTED --> SUPPRESSED: rule met but duplicate (same track,<br/>ID switch IoU ≥ 0.3 within 5 s,<br/>or same loop position ±1.5 s)
+    CONFIRMED --> FINALIZED: PLATE_WINDOW_S elapsed, track lost > 1 s,<br/>or video restarted → violation_updated
+    TRACKING --> [*]: lost > 2 s
+    SUSPECTED --> [*]: lost > 2 s
+    SUPPRESSED --> [*]: lost > 2 s
+    FINALIZED --> [*]: lost > 30 s
 ```
 
-Thresholds come from `.env` (`VIOLATION_WINDOW=10`, `VIOLATION_MIN_HITS=6`, `VIOLATION_MIN_CONF=0.50`,
-`VIOLATION_MAX_HELMET_HITS=2`, `DEDUP_IOU=0.3`, `DEDUP_WINDOW_S=5.0`, `PLATE_WINDOW_S=3.0`).
+Changes from the original plan: there is no separate PLATE_PENDING state (CONFIRMED *is* the plate-pending phase:
+the stored violation has `plate_status: PENDING` until FINALIZED), and dedup happens *before* anything is emitted
+(SUSPECTED → SUPPRESSED), so a duplicate never reaches the database. Full rules, config keys and examples:
+[docs/modules/pipeline.md §7](modules/pipeline.md#7-algorithms--design-decisions); ADRs
+[0005](adr/0005-marc-confirmation-rule.md), [0006](adr/0006-marc-dedup-and-loop-guard.md).
 The "same loop position" rule exists because the virtual cameras loop: the same rider reappears every loop
 and must not create a new violation each time.
+
+**Performance (measured, CPU i5-8350U, no GPU):** YOLO26n tracking 98-260 ms/frame for imgsz 416-640; the CPU tops
+out at ~7 detector inferences/s in total, so 4 cameras run at ~2 FPS each. Use a GPU for 4 cameras at ≥ 4 FPS, or
+2-3 cameras on CPU. Details: [pipeline.md §9](modules/pipeline.md#9-performance).
 
 ## 6. Modes
 

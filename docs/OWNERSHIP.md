@@ -1,6 +1,6 @@
 # Ownership
 
-GitHub handles: Marc `@marcpedrin` · Prajwal `@prajwal-gh` · Malik `@malik-gh` · Harish `@harish-gh`
+GitHub handles: Marc `@marcpedrin` · Prajwal `@prajwaltotad` · Malik `@malikrehanmulla1048` · Harish `@JimMilton1900`
 (**TODO**: replace the three placeholders here, in `.github/CODEOWNERS` and in the README).
 
 ```mermaid

@@ -1,6 +1,6 @@
 # Helmet
 
-Owner: Prajwal (@prajwal-gh) - `feature/helmet-detection`
+Owner: Prajwal (@prajwaltotad) - `feature/helmet-detection`
 
 <!-- doc-status: stub -->
 <!-- Delete the marker above in your first feature PR; CI then enforces check_docs.py --strict. -->

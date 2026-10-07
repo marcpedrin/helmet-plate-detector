@@ -38,4 +38,4 @@ def create_camera_manager(settings: Settings) -> CameraManagerProtocol:
     except Exception:  # factories never raise
         log.exception("Failed to load camera config %s", settings.cameras_config)
         configs = []
-    return CameraManager(configs, repo_root=REPO_ROOT)
+    return CameraManager(configs, repo_root=REPO_ROOT, app_mode=settings.app_mode)

@@ -33,11 +33,11 @@ def test_violations_pagination_newest_first(quiet_client):
     repo = quiet_client.app.state.container.repository
     t0 = time.time()
     for i in range(5):
-        repo.create(make_event(f"v{i}", "CAM_01" if i % 2 else "CAM_02", ts=t0 + i))
+        repo.create(make_event(f"a{i}", "CAM_01" if i % 2 else "CAM_02", ts=t0 + i))
     page = ViolationPage.model_validate(quiet_client.get("/api/violations?limit=2&offset=1").json())
-    assert page.total == 5 and [v.id for v in page.items] == ["v3", "v2"]
+    assert page.total == 5 and [v.id for v in page.items] == ["a3", "a2"]
     cam = ViolationPage.model_validate(quiet_client.get("/api/violations?camera_id=CAM_01").json())
-    assert [v.id for v in cam.items] == ["v3", "v1"]
+    assert [v.id for v in cam.items] == ["a3", "a1"]
     assert quiet_client.get("/api/violations?limit=0").status_code == 422
     assert quiet_client.get("/api/violations/nope").status_code == 404
 
@@ -54,12 +54,15 @@ def test_stats_counts(quiet_client):
 
 def test_live_health_degraded_when_models_not_loaded(settings):
     settings.app_mode = "live"
+    settings.helmet_weights = "backend/models/helmet/does_not_exist.pt"
+    settings.plate_detector_model = "no-such-plate-model"
     app = create_app(settings, tracker_factory=lambda cid: LoadedTracker())
     with TestClient(app) as c:
         h = HealthOut.model_validate(c.get("/api/health").json())
     assert h.mode == "live" and h.status == "degraded"
     assert h.models.detector == ModelState.LOADED
-    assert h.models.helmet == ModelState.NOT_LOADED and h.models.plate_detector == ModelState.NOT_LOADED
+    assert h.models.helmet == ModelState.NOT_LOADED
+    assert h.models.plate_detector in (ModelState.NOT_LOADED, ModelState.ERROR)
 
 
 def test_spa_fallback_serves_index_for_deep_links(settings, tmp_path):

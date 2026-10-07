@@ -101,15 +101,19 @@ class YoloHelmetClassifier:
         self.device = resolved_device
         self._half = bool("cuda" in self.device and torch.cuda.is_available())
 
-        self.model = YOLO(str(self.weights))
-        self.model.to(self.device)
+        is_pt = self.weights.suffix == ".pt"
+        self.model = YOLO(str(self.weights), task="detect")
+        # WHY: exported formats (ONNX, for faster CPU inference) cannot be moved with .to();
+        # predict(device=...) handles them.
+        if is_pt:
+            self.model.to(self.device)
         self._class_map: dict[str, HelmetStatus] = {}
         names = getattr(self.model, "names", None) or {}
         for class_id, label in names.items():
             key = _norm_label(label)
             if key in {"withhelmet", "helmet"}:
                 self._class_map[str(class_id)] = HelmetStatus.HELMET
-            elif key in {"withouthelmet", "nohelmet", "withouthelmet", "nohelmet"}:
+            elif key in {"withouthelmet", "nohelmet"}:
                 self._class_map[str(class_id)] = HelmetStatus.NO_HELMET
 
         if not self._class_map:
@@ -269,7 +273,7 @@ class YoloHelmetClassifier:
             )
             return [HelmetResult(HelmetStatus.UNKNOWN, 0.0, tuple()) for _ in riders]
 
-        for (idx, rider, crop_bbox, _), prediction in zip(scheduled, predictions):
+        for (idx, rider, crop_bbox, _), prediction in zip(scheduled, predictions, strict=True):
             if not prediction or getattr(prediction, "boxes", None) is None:
                 results[idx] = HelmetResult(HelmetStatus.UNKNOWN, 0.0, tuple())
                 continue
@@ -289,7 +293,7 @@ class YoloHelmetClassifier:
             xyxy = boxes.xyxy.cpu().numpy()
             confs = boxes.conf.cpu().numpy()
             cls_ids = boxes.cls.cpu().numpy()
-            for box, conf, cls_id in zip(xyxy, confs, cls_ids):
+            for box, conf, cls_id in zip(xyxy, confs, cls_ids, strict=True):
                 status = self._class_map.get(str(int(cls_id)))
                 if status is None:
                     continue

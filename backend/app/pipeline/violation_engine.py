@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
 # WHY: needing >= 5 looks (~1 s at 5 FPS) before confirming stops a brand-new track with a lucky
 # streak from firing.
+# WHY: capped at VIOLATION_MIN_HITS so slow (CPU, ~2 FPS) machines can still confirm short-lived riders.
 MIN_TRACK_AGE = 5
 # WHY: ByteTrack keeps lost tracks ~3 s (track_buffer 15 @ 5 FPS); 1 s without the rider means the
 # plate will not get better, so finalize early instead of waiting for PLATE_WINDOW_S.
@@ -278,7 +279,7 @@ class ViolationEngine:
             len(nh) >= self.min_hits
             and sum(nh) / len(nh) >= self.min_conf
             and helmet_hits <= self.max_helmet_hits
-            and st.n_obs >= MIN_TRACK_AGE
+            and st.n_obs >= min(MIN_TRACK_AGE, self.min_hits)
         )
 
     def _is_duplicate(self, st: TrackState, packet: FramePacket, bbox: BBox, now: float) -> bool:

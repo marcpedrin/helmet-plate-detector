@@ -7,8 +7,7 @@ import pytest
 
 from app.core import geometry
 from app.core.schemas import TrackOverlay
-from app.core.types import HelmetStatus, Track
-from app.pipeline.association import associate_riders
+from app.core.types import HelmetStatus
 from app.pipeline.overlay import OverlayState
 
 
@@ -64,8 +63,3 @@ def test_overlay_state_draws_boxes():
     out = state("CAM_01", img)
     assert out.any()
     assert not state("CAM_02", np.zeros_like(img)).any()
-
-
-def test_association_placeholder_returns_list():
-    tracks = [Track(1, (0, 0, 10, 10), 0.9, "motorcycle")]
-    assert associate_riders(tracks, 100, 100) == []

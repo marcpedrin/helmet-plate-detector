@@ -76,8 +76,12 @@ def main() -> int:
         check("WS /ws/events", False, str(exc))
         return 1
     check("WS hello first", bool(seen) and seen[0] == "hello")
-    check(f"WS violation_created within {args.timeout:.0f}s", "violation_created" in seen,
-          f"types seen: {sorted(set(seen))}")
+    if health.get("mode") == "mock" or health.get("models", {}).get("helmet") == "LOADED":
+        check(f"WS violation_created within {args.timeout:.0f}s", "violation_created" in seen,
+              f"types seen: {sorted(set(seen))}")
+    else:  # live mode without a helmet model cannot confirm violations
+        print(f"[SKIP] WS violation_created (live mode, helmet {health['models']['helmet']}); "
+              f"types seen: {sorted(set(seen))}")
     return 0 if ok else 1
 
 

@@ -6,10 +6,8 @@ import numpy as np
 import pytest
 
 from app.core import geometry
-from app.core.schemas import TrackOverlay
-from app.core.types import HelmetStatus, Track
-from app.pipeline.association import associate_riders
-from app.pipeline.overlay import OverlayState
+from app.core.types import HelmetStatus
+from app.pipeline.overlay import OverlayRider, OverlayState
 
 
 # --------------------------------------------------------------------------- geometry
@@ -56,16 +54,24 @@ def test_crop_is_copy_and_empty_safe():
     assert geometry.crop(img, (50, 50, 50, 60)).shape[:2] == (0, 0)
 
 
-# --------------------------------------------------------------------------- overlay / placeholders
-def test_overlay_state_draws_boxes():
+# --------------------------------------------------------------------------- overlay
+def test_overlay_draws_boxes_and_hud():
+    state = OverlayState({"CAM_01": "MG Road"})
+    state.update(
+        "CAM_01",
+        [OverlayRider(1, (10, 20, 60, 90), HelmetStatus.NO_HELMET, 0.9, violation=True, plate="KA01AB1234")],
+        5.0,
+    )
+    img = np.zeros((100, 120, 3), dtype=np.uint8)
+    out = state.draw("CAM_01", img)
+    assert out[20:90, 10].any()  # left edge of the box drawn
+    assert state.track_overlays("CAM_01")[0].helmet == HelmetStatus.NO_HELMET
+
+
+@pytest.mark.parametrize("shape", [(1, 1, 3), (7, 3000, 3), (50, 50), (2160, 3840, 3), (0, 0, 3)])
+def test_overlay_never_raises_on_odd_images(shape):
     state = OverlayState()
-    img = np.zeros((100, 100, 3), dtype=np.uint8)
-    state.set("CAM_01", [TrackOverlay(track_id=1, bbox=[10, 10, 50, 50], helmet=HelmetStatus.NO_HELMET)])
-    out = state("CAM_01", img)
-    assert out.any()
-    assert not state("CAM_02", np.zeros_like(img)).any()
-
-
-def test_association_placeholder_returns_list():
-    tracks = [Track(1, (0, 0, 10, 10), 0.9, "motorcycle")]
-    assert associate_riders(tracks, 100, 100) == []
+    state.update("C", [OverlayRider(1, (-50, -50, 10**6, 10**6), HelmetStatus.UNKNOWN)], 1.0)
+    img = np.zeros(shape, dtype=np.uint8)
+    assert state.draw("C", img) is img
+    assert OverlayState().draw("missing", np.zeros((10, 10, 3), np.uint8)).shape == (10, 10, 3)

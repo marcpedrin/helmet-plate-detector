@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from typing import Protocol
 
 from app import __version__
@@ -26,7 +27,8 @@ from app.core.schemas import CameraOut, HealthOut, ModelsHealth, StatsOut
 from app.core.types import CameraRuntime, CameraState, ModelState, PipelineMetrics
 from app.helmet import load_helmet_classifier
 from app.pipeline.mock_runner import MockRunner
-from app.pipeline.runner import PipelineRunner
+from app.pipeline.overlay import OverlayState
+from app.pipeline.runner import PipelineRunner, TrackerLike
 from app.plates import load_plate_service
 from app.realtime.hub import EventHub
 from app.storage import create_repository
@@ -67,6 +69,7 @@ class Container:
         *,
         mock_interval_s: tuple[float, float] = (8.0, 15.0),
         mock_plate_delay_s: float = 2.0,
+        tracker_factory: Callable[[str], TrackerLike] | None = None,
     ) -> None:
         """Build all services (nothing starts until :meth:`start`).
 
@@ -74,12 +77,16 @@ class Container:
             settings: Application settings.
             mock_interval_s: Mock mode only: min/max seconds between fake violations per camera.
             mock_plate_delay_s: Mock mode only: delay before the fake plate update.
+            tracker_factory: Live mode only: ``camera_id -> tracker`` (tests inject fakes; default YOLO26n).
         """
         self.settings = settings
         self.started_at = time.time()
         self.cameras = create_camera_manager(settings)
         self.repository = create_repository(settings)
         self.hub = EventHub()
+        names = {cid: self.cameras.get_config(cid).name for cid in self.cameras.camera_ids()}
+        self.overlay = OverlayState(names)
+        self.cameras.set_overlay(self.overlay.draw)
         self.helmet: HelmetClassifierProtocol | None = None
         self.plates: PlateServiceProtocol | None = None
         self.runner: RunnerProtocol
@@ -87,7 +94,15 @@ class Container:
             self.helmet = load_helmet_classifier(settings)
             self.plates = load_plate_service(settings)
             self.runner = PipelineRunner(
-                settings, self.cameras, self.helmet, self.plates, self.repository, self.hub, self.stats
+                settings,
+                self.cameras,
+                self.helmet,
+                self.plates,
+                self.repository,
+                self.hub,
+                self.stats,
+                overlay=self.overlay,
+                tracker_factory=tracker_factory,
             )
         else:
             self.runner = MockRunner(
@@ -97,12 +112,21 @@ class Container:
                 self.stats,
                 interval_s=mock_interval_s,
                 plate_delay_s=mock_plate_delay_s,
+                overlay=self.overlay,
             )
         self.cameras.add_status_listener(self._on_camera_status)
 
     # ------------------------------------------------------------------ lifecycle
     def start(self) -> None:
-        """Start cameras, then the runner."""
+        """Purge expired evidence, then start cameras and the runner."""
+        try:
+            purged = self.repository.purge_older_than(self.settings.evidence_retention_days)
+            if purged:
+                log.info(
+                    "Purged %d violations older than %d days", purged, self.settings.evidence_retention_days
+                )
+        except Exception:  # retention must never block startup
+            log.exception("Evidence purge failed")
         log.info("Starting in %s mode with cameras %s", self.settings.app_mode, self.cameras.camera_ids())
         self.cameras.start()
         self.runner.start()
